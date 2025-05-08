@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ESP32 Motor Control</title>
+</head>
+<body>
+  <h1>Bluetooth Motor RPM Control</h1>
+  <label>Set RPM: <input type="number" id="rpmInput" value="150"></label>
+  <button onclick="sendRPM()">Send to ESP32</button>
+
+  <h2>Current RPM: <span id="currentRPM">---</span></h2>
+  <button onclick="connectBluetooth()">Connect to ESP32</button>
+
+  <script>
+    let bluetoothDevice;
+    let writer;
+
+    async function connectBluetooth() {
+      try {
+        bluetoothDevice = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: [0x1101]
+        });
+
+        const server = await bluetoothDevice.gatt.connect();
+        const service = await server.getPrimaryService(0x1101);
+        const characteristic = await service.getCharacteristic(0x2A00); // sẽ sửa sau nếu cần
+
+        writer = characteristic;
+        console.log("Connected!");
+      } catch (error) {
+        alert("Bluetooth connection failed: " + error);
+      }
+    }
+
+    function sendRPM() {
+      const rpm = document.getElementById("rpmInput").value;
+      const message = "S" + rpm + "\n";
+      if (writer && writer.writeValue) {
+        const encoder = new TextEncoder();
+        writer.writeValue(encoder.encode(message));
+        console.log("Sent: " + message);
+      } else {
+        alert("Please connect Bluetooth first.");
+      }
+    }
+  </script>
+</body>
+</html>
