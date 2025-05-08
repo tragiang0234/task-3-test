@@ -18,15 +18,16 @@
     let writeChar;
     let notifyChar;
 
+    // ✅ UUIDs dùng đúng định dạng lowercase, tương thích Web Bluetooth
     const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
     const CHARACTERISTIC_RX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
     const CHARACTERISTIC_TX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
 
-
     async function connectBLE() {
       try {
         const device = await navigator.bluetooth.requestDevice({
-          filters: [{ namePrefix: "ESP32" }],
+          // ✅ Bỏ filter để hiện tất cả thiết bị BLE
+          acceptAllDevices: true,
           optionalServices: [SERVICE_UUID]
         });
 
