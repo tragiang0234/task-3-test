@@ -1,47 +1,66 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>ESP32 Motor Control</title>
+  <meta charset="utf-8">
+  <title>BLE Motor RPM Control</title>
 </head>
 <body>
   <h1>Bluetooth Motor RPM Control</h1>
+
   <label>Set RPM: <input type="number" id="rpmInput" value="150"></label>
   <button onclick="sendRPM()">Send to ESP32</button>
 
   <h2>Current RPM: <span id="currentRPM">---</span></h2>
-  <button onclick="connectBluetooth()">Connect to ESP32</button>
+  <button onclick="connectBLE()">Connect to ESP32</button>
 
   <script>
-    let bluetoothDevice;
-    let writer;
+    let bleServer;
+    let writeChar;
+    let notifyChar;
 
-    async function connectBluetooth() {
+    const SERVICE_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";
+    const CHARACTERISTIC_RX = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E";  // Write
+    const CHARACTERISTIC_TX = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E";  // Notify
+
+    async function connectBLE() {
       try {
-        bluetoothDevice = await navigator.bluetooth.requestDevice({
-          acceptAllDevices: true,
-          optionalServices: [0x1101]
+        const device = await navigator.bluetooth.requestDevice({
+          filters: [{ namePrefix: "ESP32" }],
+          optionalServices: [SERVICE_UUID]
         });
 
-        const server = await bluetoothDevice.gatt.connect();
-        const service = await server.getPrimaryService(0x1101);
-        const characteristic = await service.getCharacteristic(0x2A00); // sẽ sửa sau nếu cần
+        bleServer = await device.gatt.connect();
+        const service = await bleServer.getPrimaryService(SERVICE_UUID);
 
-        writer = characteristic;
-        console.log("Connected!");
+        writeChar = await service.getCharacteristic(CHARACTERISTIC_RX);
+        notifyChar = await service.getCharacteristic(CHARACTERISTIC_TX);
+
+        await notifyChar.startNotifications();
+        notifyChar.addEventListener("characteristicvaluechanged", handleNotify);
+
+        alert("✅ Connected to ESP32 BLE");
       } catch (error) {
-        alert("Bluetooth connection failed: " + error);
+        alert("❌ BLE Connection Failed: " + error);
       }
     }
 
     function sendRPM() {
       const rpm = document.getElementById("rpmInput").value;
-      const message = "S" + rpm + "\n";
-      if (writer && writer.writeValue) {
+      const message = "S" + rpm;
+      if (writeChar) {
         const encoder = new TextEncoder();
-        writer.writeValue(encoder.encode(message));
-        console.log("Sent: " + message);
+        writeChar.writeValue(encoder.encode(message));
+        console.log("Sent to ESP32:", message);
       } else {
-        alert("Please connect Bluetooth first.");
+        alert("⚠️ Not connected to ESP32 yet.");
+      }
+    }
+
+    function handleNotify(event) {
+      const value = new TextDecoder().decode(event.target.value);
+      if (value.startsWith("R")) {
+        const rpm = value.substring(1);
+        document.getElementById("currentRPM").textContent = rpm;
       }
     }
   </script>
