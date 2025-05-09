@@ -87,7 +87,10 @@
     sendRPMButton.onclick = () => {
       const rpmValue = parseInt(document.getElementById("rpmInput").value);
       if (ledCharacteristic && !isNaN(rpmValue)) {
-        ledCharacteristic.writeValue(Uint8Array.of(rpmValue));
+        const buffer = new ArrayBuffer(2);
+        const view = new DataView(buffer);
+        view.setUint16(0, rpmValue, true); // little-endian
+        ledCharacteristic.writeValue(buffer);
         valueSent.textContent = rpmValue + " RPM";
       } else {
         alert("Invalid RPM or BLE not connected.");
@@ -96,4 +99,3 @@
   </script>
 </body>
 </html>
-
