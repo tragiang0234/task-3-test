@@ -20,7 +20,8 @@
 
     async function connectBLE() {
       const device = await navigator.bluetooth.requestDevice({
-        filters: [{ services: [SERVICE_UUID] }]
+        acceptAllDevices: true,
+        optionalServices: [SERVICE_UUID]
       });
 
       const server = await device.gatt.connect();
