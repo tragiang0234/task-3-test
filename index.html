@@ -1,40 +1,34 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>ESP32 Web BLE Motor Control</title>
+  <title>ESP32 BLE Motor Control</title>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body { font-family: sans-serif; margin: 20px; }
     h1 { color: #333; }
     button { padding: 10px 20px; margin: 5px; font-size: 16px; }
-    .status { margin-top: 10px; color: green; }
   </style>
 </head>
 <body>
-  <h1>ESP32 BLE Motor Controller</h1>
+  <h1>ESP32 BLE Motor Control</h1>
   <button id="connectBleButton">🔌 Connect BLE</button>
   <button id="disconnectBleButton">❌ Disconnect</button>
-  
+
   <h2>Motor Control</h2>
   <label for="rpmInput">Set RPM:</label>
-  <input type="number" id="rpmInput" value="150" min="0" max="3000" step="1">
+  <input type="number" id="rpmInput" value="150" min="0" max="3000">
   <button id="sendRPMButton">Send RPM</button>
   <p>Last RPM Sent: <span id="valueSent">None</span></p>
-
-
 
   <h2>Current RPM</h2>
   <p><strong id="valueContainer">---</strong> RPM</p>
   <p>Last update: <span id="timestamp">Never</span></p>
-
   <p class="status" id="bleState">Disconnected</p>
 
   <script>
     const connectButton = document.getElementById('connectBleButton');
     const disconnectButton = document.getElementById('disconnectBleButton');
-    const onButton = document.getElementById('onButton');
-    const offButton = document.getElementById('offButton');
+    const sendRPMButton = document.getElementById('sendRPMButton');
     const bleState = document.getElementById('bleState');
     const valueSent = document.getElementById('valueSent');
     const valueContainer = document.getElementById('valueContainer');
@@ -45,7 +39,6 @@
     let sensorCharacteristic;
     let ledCharacteristic;
 
-    const deviceName = "ESP32";
     const serviceUUID = "19b10000-e8f2-537e-4f6c-d104768a1214";
     const sensorUUID = "19b10001-e8f2-537e-4f6c-d104768a1214";
     const ledUUID = "19b10002-e8f2-537e-4f6c-d104768a1214";
@@ -53,7 +46,7 @@
     connectButton.onclick = async () => {
       try {
         const device = await navigator.bluetooth.requestDevice({
-          filters: [{ name: deviceName }],
+          acceptAllDevices: true,
           optionalServices: [serviceUUID]
         });
 
@@ -65,15 +58,12 @@
         sensorCharacteristic = await bleService.getCharacteristic(sensorUUID);
         ledCharacteristic = await bleService.getCharacteristic(ledUUID);
 
-        // Listen to RPM notifications
         sensorCharacteristic.startNotifications();
         sensorCharacteristic.addEventListener('characteristicvaluechanged', event => {
           const value = new TextDecoder().decode(event.target.value);
           valueContainer.textContent = value;
           timestamp.textContent = new Date().toLocaleTimeString();
         });
-
-        console.log("BLE connected and notifications started.");
       } catch (error) {
         console.error("BLE Connection Error:", error);
         bleState.textContent = "Connection failed";
@@ -89,7 +79,6 @@
       }
     };
 
-    const sendRPMButton = document.getElementById("sendRPMButton");
     sendRPMButton.onclick = () => {
       const rpmValue = parseInt(document.getElementById("rpmInput").value);
       if (ledCharacteristic && !isNaN(rpmValue)) {
@@ -99,16 +88,6 @@
         alert("Invalid RPM or BLE not connected.");
       }
     };
-
-
-    function sendToBLE(value) {
-      if (ledCharacteristic) {
-        ledCharacteristic.writeValue(Uint8Array.of(value));
-        valueSent.textContent = value === 1 ? "ON" : "OFF";
-      } else {
-        alert("Not connected to BLE device.");
-      }
-    }
   </script>
 </body>
 </html>
