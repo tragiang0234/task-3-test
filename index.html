@@ -17,9 +17,11 @@
   <button id="disconnectBleButton">❌ Disconnect</button>
   
   <h2>Motor Control</h2>
-  <button id="onButton">Motor ON</button>
-  <button id="offButton">Motor OFF</button>
-  <p>Last Command: <span id="valueSent">None</span></p>
+  <label for="rpmInput">Set RPM:</label>
+  <input type="number" id="rpmInput" value="150" min="0" max="3000" step="1">
+  <button id="sendRPMButton">Send RPM</button>
+  <p>Last RPM Sent: <span id="valueSent">None</span></p>
+
 
 
   <h2>Current RPM</h2>
@@ -87,8 +89,17 @@
       }
     };
 
-    onButton.onclick = () => sendToBLE(1);
-    offButton.onclick = () => sendToBLE(0);
+    const sendRPMButton = document.getElementById("sendRPMButton");
+    sendRPMButton.onclick = () => {
+      const rpmValue = parseInt(document.getElementById("rpmInput").value);
+      if (ledCharacteristic && !isNaN(rpmValue)) {
+        ledCharacteristic.writeValue(Uint8Array.of(rpmValue));
+        valueSent.textContent = rpmValue + " RPM";
+      } else {
+        alert("Invalid RPM or BLE not connected.");
+      }
+    };
+
 
     function sendToBLE(value) {
       if (ledCharacteristic) {
