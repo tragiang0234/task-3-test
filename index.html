@@ -1,67 +1,96 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BLE Motor RPM Control</title>
+  <style>
+    body { font-family: sans-serif; margin: 30px; }
+    h1 { color: #333; }
+    button { padding: 10px 20px; margin: 5px; }
+    input { padding: 5px; width: 80px; }
+    .status { margin-top: 10px; color: #d13a30; }
+  </style>
 </head>
 <body>
-  <h1>ESP32 Bluetooth Motor RPM Control</h1>
+  <h1>BLE Motor RPM Control</h1>
 
-  <label>Set RPM: <input type="number" id="rpmInput" value="150"></label>
-  <button onclick="sendRPM()">Send to ESP32</button>
+  <p>
+    <button id="connectBleButton">Connect to ESP32</button>
+    <button id="disconnectBleButton">Disconnect</button>
+  </p>
 
-  <h2>Current RPM: <span id="currentRPM">---</span></h2>
-  <button onclick="connectBLE()">Connect to ESP32</button>
+  <p>
+    Set RPM: <input type="number" id="rpmInput" value="150">
+    <button id="sendButton">Send to ESP32</button>
+  </p>
+
+  <p>Current RPM: <strong><span id="currentRPM">---</span></strong></p>
+  <p class="status" id="bleState">Disconnected</p>
 
   <script>
-    let bleServer;
-    let writeChar;
-    let notifyChar;
+    const connectButton = document.getElementById('connectBleButton');
+    const disconnectButton = document.getElementById('disconnectBleButton');
+    const sendButton = document.getElementById('sendButton');
+    const rpmInput = document.getElementById('rpmInput');
+    const currentRPM = document.getElementById('currentRPM');
+    const bleState = document.getElementById('bleState');
 
-    const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-    const CHARACTERISTIC_RX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
-    const CHARACTERISTIC_TX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
+    const deviceName = 'ESP32-BLE-Motor';
+    const bleService = '19b10000-e8f2-537e-4f6c-d104768a1214';
+    const rxCharUUID = '19b10002-e8f2-537e-4f6c-d104768a1214'; // Write
+    const txCharUUID = '19b10001-e8f2-537e-4f6c-d104768a1214'; // Notify
 
-    async function connectBLE() {
+    let bleServer, service, txChar, rxChar;
+
+    connectButton.addEventListener('click', async () => {
       try {
         const device = await navigator.bluetooth.requestDevice({
-          acceptAllDevices: true,
-          optionalServices: [SERVICE_UUID]
+          filters: [{ name: deviceName }],
+          optionalServices: [bleService]
         });
+        bleState.textContent = `Connecting to ${device.name}...`;
 
-        bleServer = await device.gatt.connect();
-        const service = await bleServer.getPrimaryService(SERVICE_UUID);
+        device.addEventListener('gattservicedisconnected', onDisconnected);
 
-        writeChar = await service.getCharacteristic(CHARACTERISTIC_RX);
-        notifyChar = await service.getCharacteristic(CHARACTERISTIC_TX);
+        const server = await device.gatt.connect();
+        service = await server.getPrimaryService(bleService);
 
-        await notifyChar.startNotifications();
-        notifyChar.addEventListener("characteristicvaluechanged", handleNotify);
+        rxChar = await service.getCharacteristic(rxCharUUID);
+        txChar = await service.getCharacteristic(txCharUUID);
+        await txChar.startNotifications();
+        txChar.addEventListener('characteristicvaluechanged', handleNotify);
 
-        alert("✅ Connected to ESP32!");
+        bleState.textContent = `Connected to ${device.name}`;
+        bleState.style.color = '#24af37';
       } catch (error) {
-        alert("❌ Failed to connect: " + error);
+        console.error(error);
+        bleState.textContent = 'Connection failed';
       }
-    }
+    });
 
-    function sendRPM() {
-      const rpm = document.getElementById("rpmInput").value;
-      const message = "S" + rpm;
-      if (writeChar) {
-        const encoder = new TextEncoder();
-        writeChar.writeValue(encoder.encode(message));
-        console.log("Sent:", message);
-      } else {
-        alert("⚠️ Not connected yet.");
-      }
-    }
+    sendButton.addEventListener('click', async () => {
+      if (!rxChar) return alert('Not connected to ESP32');
+      const rpm = rpmInput.value;
+      const data = new TextEncoder().encode('S' + rpm);
+      await rxChar.writeValue(data);
+    });
 
     function handleNotify(event) {
       const value = new TextDecoder().decode(event.target.value);
-      if (value.startsWith("R")) {
-        const rpm = value.substring(1);
-        document.getElementById("currentRPM").textContent = rpm;
+      if (value.startsWith('R')) {
+        currentRPM.textContent = value.substring(1);
       }
+    }
+
+    disconnectButton.addEventListener('click', () => {
+      if (bleServer && bleServer.connected) bleServer.disconnect();
+    });
+
+    function onDisconnected(event) {
+      bleState.textContent = 'Disconnected';
+      bleState.style.color = '#d13a30';
+      currentRPM.textContent = '---';
     }
   </script>
 </body>
