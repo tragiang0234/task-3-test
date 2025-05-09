@@ -1,16 +1,19 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>ESP32 BLE Motor Control</title>
   <meta charset="UTF-8">
+  <title>ESP32 BLE Motor Control</title>
   <style>
     body { font-family: sans-serif; margin: 20px; }
     h1 { color: #333; }
     button { padding: 10px 20px; margin: 5px; font-size: 16px; }
+    input[type=number] { padding: 5px; font-size: 16px; width: 100px; }
+    .status { margin-top: 10px; font-weight: bold; }
   </style>
 </head>
 <body>
   <h1>ESP32 BLE Motor Control</h1>
+  
   <button id="connectBleButton">🔌 Connect BLE</button>
   <button id="disconnectBleButton">❌ Disconnect</button>
 
@@ -23,6 +26,7 @@
   <h2>Current RPM</h2>
   <p><strong id="valueContainer">---</strong> RPM</p>
   <p>Last update: <span id="timestamp">Never</span></p>
+
   <p class="status" id="bleState">Disconnected</p>
 
   <script>
@@ -39,15 +43,14 @@
     let sensorCharacteristic;
     let ledCharacteristic;
 
-    const serviceUUID = "19b10000-e8f2-537e-4f6c-d104768a1214";
-    const sensorUUID = "19b10001-e8f2-537e-4f6c-d104768a1214";
-    const ledUUID = "19b10002-e8f2-537e-4f6c-d104768a1214";
+    const serviceUUID = '19b10000-e8f2-537e-4f6c-d104768a1214';
+    const sensorUUID = '19b10001-e8f2-537e-4f6c-d104768a1214';
+    const ledUUID = '19b10002-e8f2-537e-4f6c-d104768a1214';
 
     connectButton.onclick = async () => {
       try {
         const device = await navigator.bluetooth.requestDevice({
-          acceptAllDevices: true,
-          optionalServices: [serviceUUID]
+          filters: [{ services: [serviceUUID] }]
         });
 
         bleServer = await device.gatt.connect();
@@ -64,6 +67,8 @@
           valueContainer.textContent = value;
           timestamp.textContent = new Date().toLocaleTimeString();
         });
+
+        console.log("BLE connected and notifications started.");
       } catch (error) {
         console.error("BLE Connection Error:", error);
         bleState.textContent = "Connection failed";
@@ -91,3 +96,4 @@
   </script>
 </body>
 </html>
+
