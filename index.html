@@ -21,9 +21,10 @@
   <button id="offButton">Motor OFF</button>
   <p>Last Command: <span id="valueSent">None</span></p>
 
-  <h2>Current BLE Value</h2>
-  <p><strong id="valueContainer">---</strong></p>
+  <h2>Current RPM</h2>
+  <p><strong id="valueContainer">---</strong> RPM</p>
   <p>Last update: <span id="timestamp">Never</span></p>
+
   <p class="status" id="bleState">Disconnected</p>
 
   <script>
@@ -31,12 +32,13 @@
     const disconnectButton = document.getElementById('disconnectBleButton');
     const onButton = document.getElementById('onButton');
     const offButton = document.getElementById('offButton');
+    const bleState = document.getElementById('bleState');
     const valueSent = document.getElementById('valueSent');
     const valueContainer = document.getElementById('valueContainer');
     const timestamp = document.getElementById('timestamp');
-    const bleState = document.getElementById('bleState');
 
     let bleServer;
+    let bleService;
     let sensorCharacteristic;
     let ledCharacteristic;
 
@@ -56,20 +58,21 @@
         bleState.textContent = "Connected to " + device.name;
         bleState.style.color = "green";
 
-        const service = await bleServer.getPrimaryService(serviceUUID);
-        sensorCharacteristic = await service.getCharacteristic(sensorUUID);
-        ledCharacteristic = await service.getCharacteristic(ledUUID);
+        bleService = await bleServer.getPrimaryService(serviceUUID);
+        sensorCharacteristic = await bleService.getCharacteristic(sensorUUID);
+        ledCharacteristic = await bleService.getCharacteristic(ledUUID);
 
-        await sensorCharacteristic.startNotifications();
-        sensorCharacteristic.addEventListener("characteristicvaluechanged", event => {
+        // Listen to RPM notifications
+        sensorCharacteristic.startNotifications();
+        sensorCharacteristic.addEventListener('characteristicvaluechanged', event => {
           const value = new TextDecoder().decode(event.target.value);
           valueContainer.textContent = value;
           timestamp.textContent = new Date().toLocaleTimeString();
         });
 
-        console.log("Connected and notifications started.");
-      } catch (err) {
-        console.error(err);
+        console.log("BLE connected and notifications started.");
+      } catch (error) {
+        console.error("BLE Connection Error:", error);
         bleState.textContent = "Connection failed";
         bleState.style.color = "red";
       }
@@ -83,19 +86,17 @@
       }
     };
 
-    onButton.onclick = () => {
-      if (ledCharacteristic) {
-        ledCharacteristic.writeValue(Uint8Array.of(1));
-        valueSent.textContent = "ON";
-      }
-    };
+    onButton.onclick = () => sendToBLE(1);
+    offButton.onclick = () => sendToBLE(0);
 
-    offButton.onclick = () => {
+    function sendToBLE(value) {
       if (ledCharacteristic) {
-        ledCharacteristic.writeValue(Uint8Array.of(0));
-        valueSent.textContent = "OFF";
+        ledCharacteristic.writeValue(Uint8Array.of(value));
+        valueSent.textContent = value === 1 ? "ON" : "OFF";
+      } else {
+        alert("Not connected to BLE device.");
       }
-    };
+    }
   </script>
 </body>
 </html>
