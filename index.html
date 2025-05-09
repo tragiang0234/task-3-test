@@ -2,21 +2,17 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>BLE Motor RPM Control</title>
+  <title>ESP32 BLE Motor Control</title>
 </head>
 <body>
-  <h1>ESP32 Bluetooth Motor RPM Control</h1>
-
-  <label>Set RPM: <input type="number" id="rpmInput" value="150"></label>
-  <button onclick="sendRPM()">Send to ESP32</button>
-
-  <h2>Current RPM: <span id="currentRPM">---</span></h2>
+  <h2>Motor Speed Control (RPM)</h2>
+  <label>Target RPM: <input type="number" id="rpmInput" value="150"></label>
+  <button onclick="sendRPM()">Send RPM</button>
+  <h3>Current RPM: <span id="currentRPM">---</span></h3>
   <button onclick="connectBLE()">Connect to ESP32</button>
 
   <script>
-    let bleServer;
-    let writeChar;
-    let notifyChar;
+    let writeChar, notifyChar;
 
     const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
     const CHARACTERISTIC_RX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
@@ -24,30 +20,27 @@
 
     async function connectBLE() {
       const device = await navigator.bluetooth.requestDevice({
-        filters: [{ name: "ESP32" }],
-        optionalServices: [SERVICE_UUID]
+        filters: [{ services: [SERVICE_UUID] }]
       });
 
       const server = await device.gatt.connect();
-      bleServer = server;
-
       const service = await server.getPrimaryService(SERVICE_UUID);
+
       writeChar = await service.getCharacteristic(CHARACTERISTIC_RX);
       notifyChar = await service.getCharacteristic(CHARACTERISTIC_TX);
 
-      await notifyChar.startNotifications();
-      notifyChar.addEventListener("characteristicvaluechanged", handleNotify);
-    }
-
-    function handleNotify(event) {
-      const value = new TextDecoder().decode(event.target.value);
-      document.getElementById("currentRPM").textContent = value;
+      notifyChar.startNotifications();
+      notifyChar.addEventListener('characteristicvaluechanged', event => {
+        const value = new TextDecoder().decode(event.target.value);
+        document.getElementById('currentRPM').innerText = value;
+      });
     }
 
     function sendRPM() {
-      const rpm = document.getElementById("rpmInput").value;
+      const rpm = document.getElementById('rpmInput').value;
       if (writeChar) {
-        writeChar.writeValue(new TextEncoder().encode(rpm));
+        const data = new TextEncoder().encode(rpm.toString());
+        writeChar.writeValue(data);
       }
     }
   </script>
