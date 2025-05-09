@@ -1,47 +1,99 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>BLE Test</title>
+  <title>ESP32 Web BLE Motor Control</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    h1 { color: #333; }
+    button { padding: 10px 20px; margin: 5px; font-size: 16px; }
+    .status { margin-top: 10px; color: green; }
+  </style>
 </head>
 <body>
-  <h1>BLE Connection Test</h1>
-  <button id="connect">Connect to ESP32</button>
-  <p>Status: <span id="status">Disconnected</span></p>
-  <p>Value received: <span id="value">---</span></p>
+  <h1>ESP32 BLE Motor Controller</h1>
+  <button id="connectBleButton">🔌 Connect BLE</button>
+  <button id="disconnectBleButton">❌ Disconnect</button>
+
+  <h2>Motor Control</h2>
+  <button id="onButton">Motor ON</button>
+  <button id="offButton">Motor OFF</button>
+  <p>Last Command: <span id="valueSent">None</span></p>
+
+  <h2>Current BLE Value</h2>
+  <p><strong id="valueContainer">---</strong></p>
+  <p>Last update: <span id="timestamp">Never</span></p>
+  <p class="status" id="bleState">Disconnected</p>
 
   <script>
-    const connectButton = document.getElementById('connect');
-    const statusSpan = document.getElementById('status');
-    const valueSpan = document.getElementById('value');
+    const connectButton = document.getElementById('connectBleButton');
+    const disconnectButton = document.getElementById('disconnectBleButton');
+    const onButton = document.getElementById('onButton');
+    const offButton = document.getElementById('offButton');
+    const valueSent = document.getElementById('valueSent');
+    const valueContainer = document.getElementById('valueContainer');
+    const timestamp = document.getElementById('timestamp');
+    const bleState = document.getElementById('bleState');
 
+    let bleServer;
+    let sensorCharacteristic;
+    let ledCharacteristic;
+
+    const deviceName = "ESP32";
     const serviceUUID = "19b10000-e8f2-537e-4f6c-d104768a1214";
-    const characteristicUUID = "19b10001-e8f2-537e-4f6c-d104768a1214";
+    const sensorUUID = "19b10001-e8f2-537e-4f6c-d104768a1214";
+    const ledUUID = "19b10002-e8f2-537e-4f6c-d104768a1214";
 
     connectButton.onclick = async () => {
       try {
         const device = await navigator.bluetooth.requestDevice({
-          filters: [{ name: "ESP32" }],
+          filters: [{ name: deviceName }],
           optionalServices: [serviceUUID]
         });
 
-        const server = await device.gatt.connect();
-        const service = await server.getPrimaryService(serviceUUID);
-        const characteristic = await service.getCharacteristic(characteristicUUID);
+        bleServer = await device.gatt.connect();
+        bleState.textContent = "Connected to " + device.name;
+        bleState.style.color = "green";
 
-        await characteristic.startNotifications();
-        characteristic.addEventListener("characteristicvaluechanged", event => {
+        const service = await bleServer.getPrimaryService(serviceUUID);
+        sensorCharacteristic = await service.getCharacteristic(sensorUUID);
+        ledCharacteristic = await service.getCharacteristic(ledUUID);
+
+        await sensorCharacteristic.startNotifications();
+        sensorCharacteristic.addEventListener("characteristicvaluechanged", event => {
           const value = new TextDecoder().decode(event.target.value);
-          valueSpan.textContent = value;
+          valueContainer.textContent = value;
+          timestamp.textContent = new Date().toLocaleTimeString();
         });
 
-        statusSpan.textContent = "Connected to " + device.name;
-        statusSpan.style.color = "green";
+        console.log("Connected and notifications started.");
       } catch (err) {
         console.error(err);
-        statusSpan.textContent = "Connection failed";
-        statusSpan.style.color = "red";
+        bleState.textContent = "Connection failed";
+        bleState.style.color = "red";
+      }
+    };
+
+    disconnectButton.onclick = () => {
+      if (bleServer && bleServer.connected) {
+        bleServer.disconnect();
+        bleState.textContent = "Disconnected";
+        bleState.style.color = "red";
+      }
+    };
+
+    onButton.onclick = () => {
+      if (ledCharacteristic) {
+        ledCharacteristic.writeValue(Uint8Array.of(1));
+        valueSent.textContent = "ON";
+      }
+    };
+
+    offButton.onclick = () => {
+      if (ledCharacteristic) {
+        ledCharacteristic.writeValue(Uint8Array.of(0));
+        valueSent.textContent = "OFF";
       }
     };
   </script>
